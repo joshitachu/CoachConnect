@@ -15,6 +15,7 @@ type FormStore = {
   reorderFields: (startIndex: number, endIndex: number) => void
   saveForm: () => void
   createNewForm: (name: string, description?: string) => void
+  updateFormMetadata: (name: string, description?: string) => void
 }
 
 export const useFormStore = create<FormStore>((set, get) => ({
@@ -102,5 +103,18 @@ export const useFormStore = create<FormStore>((set, get) => ({
         updatedAt: new Date(),
       }
       return { currentForm: newForm, selectedField: null }
+    }),
+
+  updateFormMetadata: (name, description) =>
+    set((state) => {
+      if (!state.currentForm) return state
+      return {
+        currentForm: {
+          ...state.currentForm,
+          name,
+          description,
+          updatedAt: new Date(),
+        },
+      }
     }),
 }))
