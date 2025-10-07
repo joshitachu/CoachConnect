@@ -3,8 +3,9 @@
 import { useFormStore } from "@/lib/form-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Save, FileText, Loader2, Pencil } from "lucide-react"
+import { Save, FileText, Loader2, Pencil, User } from "lucide-react"
 import { useState } from "react"
+import Link from "next/link"
 import {
   Dialog,
   DialogContent,
@@ -90,17 +91,17 @@ export function FormHeader() {
   }
 
   return (
-    <div className="border-b bg-card">
+    <div className="border-b border-border/30 bg-card/50 backdrop-blur-sm">
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <FileText className="h-6 w-6 text-primary" />
+            <FileText className="h-6 w-6 text-primary drop-shadow-sm" />
             <div>
-              <h1 className="text-2xl font-bold text-balance">Form Builder</h1>
+              <h1 className="text-2xl font-bold text-balance text-foreground drop-shadow-sm">Form Builder</h1>
               {currentForm && (
                 <button
                   onClick={handleEdit}
-                  className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 group"
+                  className="text-sm text-muted-foreground hover:text-primary hover:drop-shadow-sm flex items-center gap-1 group transition-all duration-200"
                 >
                   {currentForm.name}
                   <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -109,40 +110,48 @@ export function FormHeader() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Link href="/login">
+              <Button variant="outline" className="hover:bg-primary/10 hover:border-primary/30 transition-all duration-200">
+                <User className="h-4 w-4 mr-2" />
+                Login
+              </Button>
+            </Link>
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline">New Form</Button>
+                <Button variant="outline" className="hover:bg-primary/10 hover:border-primary/30 transition-all duration-200">New Form</Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="bg-card border-border/50">
                 <DialogHeader>
-                  <DialogTitle>Create New Form</DialogTitle>
-                  <DialogDescription>Start building a new form from scratch</DialogDescription>
+                  <DialogTitle className="text-foreground">Create New Form</DialogTitle>
+                  <DialogDescription className="text-muted-foreground">Start building a new form from scratch</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="form-name">Form Name</Label>
+                    <Label htmlFor="form-name" className="text-foreground">Form Name</Label>
                     <Input
                       id="form-name"
                       placeholder="Enter form name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
+                      className="bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="form-description">Description (optional)</Label>
+                    <Label htmlFor="form-description" className="text-foreground">Description (optional)</Label>
                     <Textarea
                       id="form-description"
                       placeholder="Enter form description"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
+                      className="bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20"
                     />
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setCreateOpen(false)}>
+                  <Button variant="outline" onClick={() => setCreateOpen(false)} className="hover:bg-secondary/50">
                     Cancel
                   </Button>
-                  <Button onClick={handleCreate}>Create</Button>
+                  <Button onClick={handleCreate} className="bg-primary hover:bg-primary/80 text-primary-foreground hover:shadow-lg hover:shadow-primary/20 transition-all duration-200">Create</Button>
                 </div>
               </DialogContent>
             </Dialog>
@@ -150,41 +159,43 @@ export function FormHeader() {
             {currentForm && (
               <>
                 <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                  <DialogContent>
+                  <DialogContent className="bg-card border-border/50">
                     <DialogHeader>
-                      <DialogTitle>Edit Form Details</DialogTitle>
-                      <DialogDescription>Update your form name and description</DialogDescription>
+                      <DialogTitle className="text-foreground">Edit Form Details</DialogTitle>
+                      <DialogDescription className="text-muted-foreground">Update your form name and description</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                       <div className="space-y-2">
-                        <Label htmlFor="edit-form-name">Form Name</Label>
+                        <Label htmlFor="edit-form-name" className="text-foreground">Form Name</Label>
                         <Input
                           id="edit-form-name"
                           placeholder="Enter form name"
                           value={name}
                           onChange={(e) => setName(e.target.value)}
+                          className="bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="edit-form-description">Description (optional)</Label>
+                        <Label htmlFor="edit-form-description" className="text-foreground">Description (optional)</Label>
                         <Textarea
                           id="edit-form-description"
                           placeholder="Enter form description"
                           value={description}
                           onChange={(e) => setDescription(e.target.value)}
+                          className="bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20"
                         />
                       </div>
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setEditOpen(false)}>
+                      <Button variant="outline" onClick={() => setEditOpen(false)} className="hover:bg-secondary/50">
                         Cancel
                       </Button>
-                      <Button onClick={handleUpdate}>Update</Button>
+                      <Button onClick={handleUpdate} className="bg-primary hover:bg-primary/80 text-primary-foreground hover:shadow-lg hover:shadow-primary/20 transition-all duration-200">Update</Button>
                     </div>
                   </DialogContent>
                 </Dialog>
 
-                <Button onClick={handleSaveForm} disabled={isSaving}>
+                <Button onClick={handleSaveForm} disabled={isSaving} className="bg-primary hover:bg-primary/80 text-primary-foreground hover:shadow-lg hover:shadow-primary/20 transition-all duration-200 disabled:opacity-50">
                   {isSaving ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />

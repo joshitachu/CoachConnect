@@ -24,31 +24,31 @@ export default function FormBuilderPage() {
       <FormHeader />
       <div className="container mx-auto px-6 py-8">
         <Tabs defaultValue="builder" className="space-y-6">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
-            <TabsTrigger value="builder">Builder</TabsTrigger>
-            <TabsTrigger value="preview">Preview</TabsTrigger>
+          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 bg-card border-border">
+            <TabsTrigger value="builder" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary-foreground">Builder</TabsTrigger>
+            <TabsTrigger value="preview" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary-foreground">Preview</TabsTrigger>
           </TabsList>
 
           <TabsContent value="builder" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="lg:col-span-1">
-                <CardHeader>
-                  <CardTitle>Fields</CardTitle>
+              <Card className="lg:col-span-1 bg-card/50 border-border/50 backdrop-blur-sm">
+                <CardHeader className="border-b border-border/30">
+                  <CardTitle className="text-foreground">Fields</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 pt-6">
                   <AddFieldDialog />
-                  <div className="max-h-[600px] overflow-y-auto pr-2">
+                  <div className="max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                     <FieldList />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle>Field Configuration</CardTitle>
+              <Card className="lg:col-span-2 bg-card/50 border-border/50 backdrop-blur-sm">
+                <CardHeader className="border-b border-border/30">
+                  <CardTitle className="text-foreground">Field Configuration</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="max-h-[600px] overflow-y-auto pr-2">
+                <CardContent className="pt-6">
+                  <div className="max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                     <FieldConfig />
                   </div>
                 </CardContent>
