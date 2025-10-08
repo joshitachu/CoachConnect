@@ -5,22 +5,40 @@ import { FieldList } from "@/components/form-builder/field-list"
 import { FieldConfig } from "@/components/form-builder/field-config"
 import { FormPreview } from "@/components/form-builder/form-preview"
 import { AddFieldDialog } from "@/components/form-builder/add-field-dialog"
+import { UserHeader } from "@/components/user-header"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useFormStore } from "@/lib/form-store"
+import { useUser } from "@/lib/user-context"
 import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 export default function FormBuilderPage() {
   const { currentForm, createNewForm } = useFormStore()
+  const { isLoggedIn, isClient, isTrainer } = useUser()
+  const router = useRouter()
 
   useEffect(() => {
-    if (!currentForm) {
+    // If user is logged in and is a client, redirect to dashboard
+    if (isLoggedIn() && isClient()) {
+      router.push("/dashboard")
+      return
+    }
+
+    // If user is logged in as trainer, show form builder
+    if (isLoggedIn() && isTrainer() && !currentForm) {
       createNewForm("Untitled Form", "Start building your form")
     }
-  }, [])
+  }, [isLoggedIn, isClient, isTrainer, currentForm, createNewForm, router])
+
+  // Don't render anything while redirecting clients
+  if (isLoggedIn() && isClient()) {
+    return null
+  }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      <UserHeader />
       <FormHeader />
       <div className="container mx-auto px-6 py-8">
         <Tabs defaultValue="builder" className="space-y-6">

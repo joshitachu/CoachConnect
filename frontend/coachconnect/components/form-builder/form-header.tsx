@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Save, FileText, Loader2, Pencil, User } from "lucide-react"
 import { useState } from "react"
 import Link from "next/link"
+import { useUser } from "@/lib/user-context"
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,7 @@ import { useToast } from "@/components/ui/use-toast"
 export function FormHeader() {
   const { currentForm, saveForm, createNewForm, updateFormMetadata } = useFormStore()
   const { toast } = useToast()
+  const { isLoggedIn } = useUser()
   const [createOpen, setCreateOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [name, setName] = useState("")
@@ -110,12 +112,14 @@ export function FormHeader() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/login">
-              <Button variant="outline" className="hover:bg-primary/10 hover:border-primary/30 transition-all duration-200">
-                <User className="h-4 w-4 mr-2" />
-                Login
-              </Button>
-            </Link>
+            {!isLoggedIn() && (
+              <Link href="/login">
+                <Button variant="outline" className="hover:bg-primary/10 hover:border-primary/30 transition-all duration-200">
+                  <User className="h-4 w-4 mr-2" />
+                  Login
+                </Button>
+              </Link>
+            )}
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="hover:bg-primary/10 hover:border-primary/30 transition-all duration-200">New Form</Button>

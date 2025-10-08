@@ -9,17 +9,61 @@ import { User, Lock, LogIn, ArrowLeft, Shield, GraduationCap } from "lucide-reac
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import Link from "next/link"
+import { useUser } from "@/lib/user-context"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { setUser } = useUser()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [trainerCode, setTrainerCode] = useState("")
   const [userRole, setUserRole] = useState("client")
+  const [loading, setLoading] = useState(false)
 
-  const handleLogin = () => {
-    // Simpele navigatie naar de form builder
-    router.push("/")
+  const handleLogin = async () => {
+    if (!username || !password) {
+      alert("Please fill in both email and password")
+      return
+    }
+
+    setLoading(true)
+    
+    try {
+      // Create FormData object as the backend expects Form data
+      const formData = new FormData()
+      formData.append('email', username)
+      formData.append('password', password)
+      formData.append('role', userRole) // Send the selected role to backend
+
+      const response = await fetch('http://localhost:8000/login', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Store user data in context
+        setUser(data.user)
+        
+        alert(data.message)
+        
+        // Redirect based on user role
+        if (data.user.role === "trainer") {
+          router.push("/") // Form builder for trainers
+        } else {
+          router.push("/dashboard") // Dashboard for clients
+        }
+      } else {
+        const errorData = await response.json()
+        alert(errorData.detail || "Login failed")
+      }
+    } catch (error) {
+      console.error('Error during login:', error)
+      alert("Network error. Make sure your backend is running on http://localhost:8000")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -67,12 +111,12 @@ export default function LoginPage() {
                   <div className="space-y-2">
                     <Label htmlFor="username-client" className="text-foreground flex items-center gap-2">
                       <User className="h-4 w-4" />
-                      Username
+                      Email Address
                     </Label>
                     <Input
                       id="username-client"
-                      type="text"
-                      placeholder="Enter your username"
+                      type="email"
+                      placeholder="Enter your email address"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       className="bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20 h-11"
@@ -119,12 +163,12 @@ export default function LoginPage() {
                   <div className="space-y-2">
                     <Label htmlFor="username-trainer" className="text-foreground flex items-center gap-2">
                       <User className="h-4 w-4" />
-                      Username
+                      Email Address
                     </Label>
                     <Input
                       id="username-trainer"
-                      type="text"
-                      placeholder="Enter your trainer username"
+                      type="email"
+                      placeholder="Enter your email address"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       className="bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20 h-11"
@@ -162,11 +206,12 @@ export default function LoginPage() {
             <div className="space-y-4">
               <Button 
                 onClick={handleLogin}
-                className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                disabled={loading}
+                className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium disabled:opacity-50"
                 size="lg"
               >
                 <LogIn className="h-4 w-4 mr-2" />
-                Sign In as {userRole === "trainer" ? "Trainer" : "Client"}
+                {loading ? "Signing in..." : `Sign In as ${userRole === "trainer" ? "Trainer" : "Client"}`}
               </Button>
 
               <div className="text-center">

@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { User, Lock, UserPlus, ArrowLeft, Phone, Globe, UserCheck } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { User, Lock, UserPlus, ArrowLeft, Phone, Globe, UserCheck, GraduationCap } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import Link from "next/link"
@@ -18,10 +19,43 @@ export default function SignUpPage() {
   const [password, setPassword] = useState("")
   const [phoneNumber, setPhoneNumber] = useState("")
   const [country, setCountry] = useState("")
+  const [userRole, setUserRole] = useState("client")
 
-  const handleSignUp = () => {
-    // Simpele navigatie naar de form builder na registratie
-    router.push("/")
+  const handleSignUp = async () => {
+    // Validate required fields
+    if (!firstName || !lastName || !username || !password || !phoneNumber || !country) {
+      alert("Please fill in all fields")
+      return
+    }
+
+    try {
+      // Create FormData object as the backend expects Form data
+      const formData = new FormData()
+      formData.append('first_name', firstName)
+      formData.append('last_name', lastName)
+      formData.append('email', username) // Using username as email
+      formData.append('password', password)
+      formData.append('country', country)
+      formData.append('phone_number', phoneNumber)
+      formData.append('role', userRole) // Add role information
+
+      const response = await fetch('http://localhost:8000/signup', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert(`Account created successfully as ${userRole}! User ID: ${data.user_id}`)
+        router.push("/login") // Redirect to login after successful signup
+      } else {
+        const errorData = await response.json()
+        alert(errorData.detail || "Something went wrong")
+      }
+    } catch (error) {
+      console.error('Error during signup:', error)
+      alert("Network error. Make sure your backend is running on http://localhost:8000")
+    }
   }
 
   const countries = [
@@ -60,6 +94,43 @@ export default function SignUpPage() {
           </CardHeader>
 
           <CardContent className="space-y-6">
+            <Tabs value={userRole} onValueChange={setUserRole} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 bg-muted/30">
+                <TabsTrigger value="client" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary-foreground">
+                  <User className="h-4 w-4 mr-2" />
+                  Client
+                </TabsTrigger>
+                <TabsTrigger value="trainer" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary-foreground">
+                  <GraduationCap className="h-4 w-4 mr-2" />
+                  Trainer
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="client" className="space-y-4 mt-6">
+                <div className="p-3 bg-blue-500/5 rounded-lg border border-blue-500/20 mb-4">
+                  <p className="text-sm text-foreground flex items-center gap-2">
+                    <User className="h-4 w-4 text-blue-500" />
+                    <span className="font-medium">Client Account</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Access your personal dashboard and view assigned forms
+                  </p>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="trainer" className="space-y-4 mt-6">
+                <div className="p-3 bg-primary/5 rounded-lg border border-primary/20 mb-4">
+                  <p className="text-sm text-foreground flex items-center gap-2">
+                    <GraduationCap className="h-4 w-4 text-primary" />
+                    <span className="font-medium">Trainer Account</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Create and manage forms, track client progress
+                  </p>
+                </div>
+              </TabsContent>
+            </Tabs>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName" className="text-foreground flex items-center gap-2">
@@ -96,12 +167,12 @@ export default function SignUpPage() {
               <div className="space-y-2">
                 <Label htmlFor="username" className="text-foreground flex items-center gap-2">
                   <UserCheck className="h-4 w-4" />
-                  Username
+                  Email Address
                 </Label>
                 <Input
                   id="username"
-                  type="text"
-                  placeholder="Choose a username"
+                  type="email"
+                  placeholder="Enter your email address"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20 h-11"
@@ -172,7 +243,7 @@ export default function SignUpPage() {
                 size="lg"
               >
                 <UserPlus className="h-4 w-4 mr-2" />
-                Create Account
+                Create {userRole === "trainer" ? "Trainer" : "Client"} Account
               </Button>
 
               <div className="text-center">
