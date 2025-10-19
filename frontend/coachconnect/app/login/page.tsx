@@ -50,7 +50,7 @@ export default function LoginPage() {
         
         // Redirect based on user role
         if (data.user.role === "trainer") {
-          router.push("/") // Form builder for trainers
+          router.push("/dashboard") // Trainer should see their dashboard first
         } else {
           router.push("/dashboard") // Dashboard for clients
         }

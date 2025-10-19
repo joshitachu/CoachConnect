@@ -1,6 +1,4 @@
 "use client"
-
-import { FormHeader } from "@/components/form-builder/form-header"
 import { FieldList } from "@/components/form-builder/field-list"
 import { FieldConfig } from "@/components/form-builder/field-config"
 import { FormPreview } from "@/components/form-builder/form-preview"
@@ -12,6 +10,8 @@ import { useFormStore } from "@/lib/form-store"
 import { useUser } from "@/lib/user-context"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { AppWindow, User, Apple, Activity, FileText } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 export default function FormBuilderPage() {
   const { currentForm, createNewForm } = useFormStore()
@@ -39,7 +39,6 @@ export default function FormBuilderPage() {
   return (
     <div className="min-h-screen bg-background relative">
       <UserHeader />
-      <FormHeader />
       <div className="container mx-auto px-6 py-8">
         <Tabs defaultValue="builder" className="space-y-6">
           <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 bg-card border-border">
