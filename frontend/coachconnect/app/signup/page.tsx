@@ -70,7 +70,10 @@ export default function SignUpPage() {
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="absolute top-6 left-6">
         <Link href="/login">
-         
+          <Button variant="outline" className="hover:bg-primary/10 hover:border-primary/30 transition-all duration-200">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Login
+          </Button>
         </Link>
       </div>
       

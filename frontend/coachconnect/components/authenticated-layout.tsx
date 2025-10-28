@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation"
 import { FormHeader } from "@/components/form-builder/form-header"
 import Sidebar from "@/components/sidebar"
-import { UserHeader } from "@/components/user-header"
 
 export default function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || ""
@@ -17,7 +16,6 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
 
   return (
     <>
-      <UserHeader />
       <FormHeader />
       <div className="flex">
         <Sidebar />

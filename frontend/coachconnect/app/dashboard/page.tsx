@@ -64,7 +64,6 @@ export default function Dashboard() {
     if (isTrainer()) {
       return (
         <div className="flex-1 p-8">
-          <h1 className="text-4xl font-bold">Hier komt de trainers dashboard :)</h1>
           <p className="text-muted-foreground mt-2">Trainer view — active tab: {active}</p>
         </div>
       )
