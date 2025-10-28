@@ -3,20 +3,60 @@ import { FieldList } from "@/components/form-builder/field-list"
 import { FieldConfig } from "@/components/form-builder/field-config"
 import { FormPreview } from "@/components/form-builder/form-preview"
 import { AddFieldDialog } from "@/components/form-builder/add-field-dialog"
-import { UserHeader } from "@/components/user-header"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { useFormStore } from "@/lib/form-store"
 import { useUser } from "@/lib/user-context"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { AppWindow, User, Apple, Activity, FileText } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Save, Loader2 } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function FormBuilderPage() {
-  const { currentForm, createNewForm } = useFormStore()
+  const { currentForm, createNewForm, saveForm } = useFormStore()
   const { isLoggedIn, isClient, isTrainer } = useUser()
+  const { toast } = useToast()
   const router = useRouter()
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleSaveForm = async () => {
+    if (!currentForm) return
+
+    setIsSaving(true)
+    try {
+      // Save to local store first
+      saveForm()
+
+      // Send to backend via Next.js API route
+      const response = await fetch("/api/form-submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(currentForm),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to save form")
+      }
+
+      toast({
+        title: "Form saved successfully",
+        description: "Your form has been saved to the database.",
+      })
+    } catch (error) {
+      console.error("[v0] Error saving form:", error)
+      toast({
+        title: "Error saving form",
+        description: error instanceof Error ? error.message : "Failed to save form to database",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   useEffect(() => {
     // If user is logged in and is a client, redirect to dashboard
@@ -38,8 +78,34 @@ export default function FormBuilderPage() {
 
   return (
     <div className="min-h-screen bg-background relative">
-      <UserHeader />
       <div className="container mx-auto px-6 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-3xl font-bold text-foreground">Form Builder</h2>
+            {currentForm && (
+              <p className="text-sm text-muted-foreground mt-1">{currentForm.name}</p>
+            )}
+          </div>
+          {currentForm && (
+            <Button 
+              onClick={handleSaveForm} 
+              disabled={isSaving} 
+              className="bg-primary hover:bg-primary/80 text-primary-foreground hover:shadow-lg hover:shadow-primary/20 transition-all duration-200 disabled:opacity-50"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Form
+                </>
+              )}
+            </Button>
+          )}
+        </div>
         <Tabs defaultValue="builder" className="space-y-6">
           <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 bg-card border-border">
             <TabsTrigger value="builder" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary-foreground">Builder</TabsTrigger>

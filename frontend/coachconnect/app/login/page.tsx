@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { User, Lock, LogIn, ArrowLeft, Shield, GraduationCap } from "lucide-react"
+import { User, Lock, LogIn, Shield, GraduationCap } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import Link from "next/link"
@@ -68,15 +68,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="absolute top-6 left-6">
-        <Link href="/">
-          <Button variant="outline" className="hover:bg-primary/10 hover:border-primary/30 transition-all duration-200">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Forms
-          </Button>
-        </Link>
-      </div>
-      
       <div className="w-full max-w-md">
         <Card className="bg-card/50 border-border/50 backdrop-blur-sm shadow-2xl">
           <CardHeader className="text-center space-y-4">
