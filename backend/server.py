@@ -1,6 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 import json
 from fastapi.responses import JSONResponse
+import requests
+
+from sqlalchemy import create_engine, text
+
+from DB.db import insert_onboarding_form_for_trainer_email
 
 app = FastAPI()
 
@@ -13,10 +18,16 @@ def read_item(item_id: int, q: str = None):
     return {"item_id": item_id, "q": q}
 
 
-@app.post('/api/forms')
-def get_forms():
+@app.post("/api/forms")
+async def get_forms(request: Request):
     print("Received request for forms")
-    return {"forms": []}
+    
+    # Extract JSON data from frontend
+    data = await request.json()
+    print(data)
+    insert_onboarding_form_for_trainer_email('joshikabel@gmail.co,',data)
+    print("Received data:", data)
+    return {"message": "Form received successfully", "data": data}
 
 
 form = {
@@ -81,3 +92,10 @@ form = {
 def get_form():
     print("Received request for a specific form")
     return JSONResponse(content=form)
+
+db_url= "postgresql+psycopg2://coach_user:voetbal123@127.0.0.1:5432/coachconnect"
+
+engine = create_engine(db_url, pool_pre_ping=True)
+
+
+
