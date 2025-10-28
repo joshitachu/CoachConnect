@@ -55,8 +55,8 @@ export default function Dashboard() {
     if (isClient()) {
       return (
         <div className="flex-1 p-8">
-          <h1 className="text-4xl font-bold">Welcome back, {user.first_name}!</h1>
-          <p className="text-muted-foreground mt-2">Client view — active tab: {active}</p>
+          <h1 className="text-4xl font-bold">Hallo, {user.first_name}!</h1>
+          <p className="text-muted-foreground mt-2">Client Scherm: {active}</p>
         </div>
       )
     }
@@ -64,7 +64,7 @@ export default function Dashboard() {
     if (isTrainer()) {
       return (
         <div className="flex-1 p-8">
-          <p className="text-muted-foreground mt-2">Trainer view — active tab: {active}</p>
+          <p className="text-muted-foreground mt-2">TTrainer scherm: {active}</p>
         </div>
       )
     }
