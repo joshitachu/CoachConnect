@@ -3,7 +3,7 @@
 import { useFormStore } from "@/lib/form-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Save, FileText, Loader2, Pencil, User } from "lucide-react"
+import { Save, Loader2, Pencil, User, Dumbbell } from "lucide-react"
 import { useState } from "react"
 import Link from "next/link"
 import { useUser } from "@/lib/user-context"
@@ -96,10 +96,14 @@ export function FormHeader() {
     <div className="border-b border-border/30 bg-card/50 backdrop-blur-sm">
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <FileText className="h-6 w-6 text-primary drop-shadow-sm" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+              <Dumbbell className="h-6 w-6 text-primary drop-shadow-sm" />
+            </div>
             <div>
-              <h1 className="text-2xl font-bold text-balance text-foreground drop-shadow-sm">Form Builder</h1>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent drop-shadow-sm">
+                CoachConnect
+              </h1>
               {currentForm && (
                 <button
                   onClick={handleEdit}
