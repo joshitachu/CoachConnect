@@ -5,27 +5,57 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { User, Lock, LogIn, Shield, GraduationCap } from "lucide-react"
+import { User, Lock, LogIn, Shield, GraduationCap, AlertCircle, Eye, EyeOff } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import Link from "next/link"
 import { useUser } from "@/lib/user-context"
+import { validateLoginForm } from "@/lib/login-validation"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function LoginPage() {
   const router = useRouter()
   const { setUser } = useUser()
+  const { toast } = useToast()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [trainerCode, setTrainerCode] = useState("")
   const [userRole, setUserRole] = useState("client")
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+
+  const handleBlur = (field: string) => {
+    setTouched({ ...touched, [field]: true })
+    
+    // Validate on blur
+    const validation = validateLoginForm({ email: username, password })
+    if (!validation.isValid) {
+      setErrors(validation.errors)
+    } else {
+      setErrors({})
+    }
+  }
 
   const handleLogin = async () => {
-    if (!username || !password) {
-      alert("Please fill in both email and password")
+    // Mark all fields as touched
+    setTouched({ email: true, password: true })
+
+    // Validate form
+    const validation = validateLoginForm({ email: username, password })
+    
+    if (!validation.isValid) {
+      setErrors(validation.errors)
+      toast({
+        title: "Validation Error",
+        description: "Please fix the errors before submitting",
+        variant: "destructive",
+      })
       return
     }
 
+    setErrors({})
     setLoading(true)
     
     try {
@@ -46,7 +76,10 @@ export default function LoginPage() {
         // Store user data in context
         setUser(data.user)
         
-        alert(data.message)
+        toast({
+          title: "Login Successful",
+          description: `Welcome back, ${data.user.first_name}!`,
+        })
         
         // Redirect based on user role
         if (data.user.role === "trainer") {
@@ -56,13 +89,27 @@ export default function LoginPage() {
         }
       } else {
         const errorData = await response.json()
-        alert(errorData.detail || "Login failed")
+        toast({
+          title: "Login Failed",
+          description: errorData.detail || "Invalid email or password",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error('Error during login:', error)
-      alert("Network error. Make sure your backend is running on http://localhost:8000")
+      toast({
+        title: "Network Error",
+        description: "Make sure your backend is running on http://localhost:8000",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleLogin()
     }
   }
 
@@ -109,9 +156,22 @@ export default function LoginPage() {
                       type="email"
                       placeholder="Enter your email address"
                       value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20 h-11"
+                      onChange={(e) => {
+                        setUsername(e.target.value.toLowerCase().trim())
+                        if (touched.email) handleBlur('email')
+                      }}
+                      onBlur={() => handleBlur('email')}
+                      onKeyPress={handleKeyPress}
+                      className={`bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20 h-11 ${
+                        touched.email && errors.email ? 'border-red-500 focus:border-red-500' : ''
+                      }`}
                     />
+                    {touched.email && errors.email && (
+                      <div className="flex items-center gap-1 text-red-500 text-sm">
+                        <AlertCircle className="h-3 w-3" />
+                        <span>{errors.email}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -119,14 +179,36 @@ export default function LoginPage() {
                       <Lock className="h-4 w-4" />
                       Password
                     </Label>
-                    <Input
-                      id="password-client"
-                      type="password"
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20 h-11"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="password-client"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value)
+                          if (touched.password) handleBlur('password')
+                        }}
+                        onBlur={() => handleBlur('password')}
+                        onKeyPress={handleKeyPress}
+                        className={`bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20 h-11 pr-10 ${
+                          touched.password && errors.password ? 'border-red-500 focus:border-red-500' : ''
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {touched.password && errors.password && (
+                      <div className="flex items-center gap-1 text-red-500 text-sm">
+                        <AlertCircle className="h-3 w-3" />
+                        <span>{errors.password}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -161,9 +243,22 @@ export default function LoginPage() {
                       type="email"
                       placeholder="Enter your email address"
                       value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20 h-11"
+                      onChange={(e) => {
+                        setUsername(e.target.value.toLowerCase().trim())
+                        if (touched.email) handleBlur('email')
+                      }}
+                      onBlur={() => handleBlur('email')}
+                      onKeyPress={handleKeyPress}
+                      className={`bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20 h-11 ${
+                        touched.email && errors.email ? 'border-red-500 focus:border-red-500' : ''
+                      }`}
                     />
+                    {touched.email && errors.email && (
+                      <div className="flex items-center gap-1 text-red-500 text-sm">
+                        <AlertCircle className="h-3 w-3" />
+                        <span>{errors.email}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -171,14 +266,36 @@ export default function LoginPage() {
                       <Lock className="h-4 w-4" />
                       Password
                     </Label>
-                    <Input
-                      id="password-trainer"
-                      type="password"
-                      placeholder="Enter your trainer password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20 h-11"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="password-trainer"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Enter your trainer password"
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value)
+                          if (touched.password) handleBlur('password')
+                        }}
+                        onBlur={() => handleBlur('password')}
+                        onKeyPress={handleKeyPress}
+                        className={`bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20 h-11 pr-10 ${
+                          touched.password && errors.password ? 'border-red-500 focus:border-red-500' : ''
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {touched.password && errors.password && (
+                      <div className="flex items-center gap-1 text-red-500 text-sm">
+                        <AlertCircle className="h-3 w-3" />
+                        <span>{errors.password}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
