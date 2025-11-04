@@ -20,51 +20,44 @@ export default function LoginPage() {
   const [userRole, setUserRole] = useState("client")
   const [loading, setLoading] = useState(false)
 
-  const handleLogin = async () => {
-    if (!username || !password) {
-      alert("Please fill in both email and password")
-      return
-    }
-
-    setLoading(true)
-    
-    try {
-      // Create FormData object as the backend expects Form data
-      const formData = new FormData()
-      formData.append('email', username)
-      formData.append('password', password)
-      formData.append('role', userRole) // Send the selected role to backend
-
-      const response = await fetch('http://localhost:8000/login', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        
-        // Store user data in context
-        setUser(data.user)
-        
-        alert(data.message)
-        
-        // Redirect based on user role
-        if (data.user.role === "trainer") {
-          router.push("/dashboard") // Trainer should see their dashboard first
-        } else {
-          router.push("/dashboard") // Dashboard for clients
-        }
-      } else {
-        const errorData = await response.json()
-        alert(errorData.detail || "Login failed")
-      }
-    } catch (error) {
-      console.error('Error during login:', error)
-      alert("Network error. Make sure your backend is running on http://localhost:8000")
-    } finally {
-      setLoading(false)
-    }
+ const handleLogin = async () => {
+  if (!username || !password) {
+    alert("Please fill in both email and password")
+    return
   }
+
+  setLoading(true)
+  try {
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: username,
+        password,
+        role: userRole,              // 👈 send role
+        trainer_code: trainerCode || null, // 👈 send trainer code (optional)
+      }),
+    })
+
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok) {
+      throw new Error(data?.detail || "Login failed")
+    }
+
+    if (data.success) {
+      alert(data.message || "Login successful")
+      router.push("/dashboard")
+    } else {
+      alert(data.message || "Invalid credentials")
+    }
+  } catch (err: any) {
+    alert(err?.message || "Network or server error")
+  } finally {
+    setLoading(false)
+  }
+}
+
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">

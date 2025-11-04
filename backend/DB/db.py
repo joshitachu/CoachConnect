@@ -5,6 +5,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from dotenv import load_dotenv
 import os
 import json
+import random
+import string
 from typing import Optional, Dict, Any, List
 
 # --- Config ---
@@ -182,4 +184,105 @@ def get_forms_by_trainer_email(trainer_email: str) -> List[Dict[str, Any]]:
                     pass
             out.append(m)
         return out
+
+# --- Login helper ---
+def check_login(email: str, password: str) -> bool:
+    """
+    Check if a user with the given email and password exists.
+    Returns True if credentials are valid, else False.
+    """
+    email = _sanitize_email(email)
+    print(email, password)
+    with SessionLocal() as db:
+        row = db.execute(
+            text("SELECT * FROM trainer_user WHERE email = :email "),
+            {"email": email, "password": password}
+        ).fetchone()
+
+        print("DB query result:", row)
+        return bool(row)
+    
+
+def check_login_client(email: str, password: str) -> bool:
+    """
+    Check if a client user with the given email and password exists.
+    Returns True if credentials are valid, else False.
+    """
+    email = _sanitize_email(email)
+    print(email, password)
+    with SessionLocal() as db:
+        row = db.execute(
+            text("SELECT * FROM client_user WHERE email = :email "),
+            {"email": email, "password": password}
+        ).fetchone()
+
+        print("DB query result:", row)
+        return bool(row)
+    
+
+def create_account(client_data: Dict[str, Any], role: str) -> bool:
+    """
+    Create a new user in the appropriate table based on role.
+    Returns True if creation is successful, else False.
+    """
+
+    # Extract once so both branches can use them
+    first_name   = client_data.get("first_name") or ""
+    last_name    = client_data.get("last_name") or ""
+    password     = client_data.get("password") or ""   # TODO: hash this!
+    phone_number = client_data.get("phone_number") or ""
+    country      = client_data.get("country") or ""
+    email        = _sanitize_email(client_data.get("email"))
+
+
+    # Choose the table explicitly to avoid injection
+    if role == "client":
+                insert_sql = text("""
+                    INSERT INTO client_user
+                      (first_name, last_name, email, password, phone_number, country)
+                    VALUES
+                      (:first_name, :last_name, :email, :password, :phone_number, :country)
+                """)
+                params = {
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "email": email,
+                    "password": password,
+                    "phone_number": phone_number,
+                    "country": country,
+                }
+    elif role == "trainer":
+        trainers_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
+        insert_sql = text("""
+            INSERT INTO trainer_user
+              (first_name, last_name, email, password, phone_number, country, trainers_code)
+            VALUES
+              (:first_name, :last_name, :email, :password, :phone_number, :country, :trainers_code)
+        """)
+        params = {
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": email,
+            "password": password,
+            "phone_number": phone_number,
+            "country": country,
+            "trainers_code": trainers_code,  # <-- pass it here
+        }
+    else:
+        # Invalid role; let caller handle properly if needed
+        return False
+
+
+
+    with SessionLocal() as db:
+        try:
+            db.execute(insert_sql, params)
+            db.commit()
+            return True
+        except Exception as e:
+            print(f"Error creating {role} account:", e)
+            db.rollback()
+            return False
+    
+
 

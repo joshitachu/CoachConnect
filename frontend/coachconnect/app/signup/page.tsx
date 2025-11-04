@@ -22,42 +22,39 @@ export default function SignUpPage() {
   const [userRole, setUserRole] = useState("client")
 
   const handleSignUp = async () => {
-    // Validate required fields
-    if (!firstName || !lastName || !username || !password || !phoneNumber || !country) {
-      alert("Please fill in all fields")
-      return
-    }
-
-    try {
-      // Create FormData object as the backend expects Form data
-      const formData = new FormData()
-      formData.append('first_name', firstName)
-      formData.append('last_name', lastName)
-      formData.append('email', username) // Using username as email
-      formData.append('password', password)
-      formData.append('country', country)
-      formData.append('phone_number', phoneNumber)
-      formData.append('role', userRole) // Add role information
-
-      const response = await fetch('http://localhost:8000/signup', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        alert(`Account created successfully as ${userRole}! User ID: ${data.user_id}`)
-        router.push("/login") // Redirect to login after successful signup
-      } else {
-        const errorData = await response.json()
-        alert(errorData.detail || "Something went wrong")
-      }
-    } catch (error) {
-      console.error('Error during signup:', error)
-      alert("Network error. Make sure your backend is running on http://localhost:8000")
-    }
+  if (!firstName || !lastName || !username || !password || !phoneNumber || !country) {
+    alert("Please fill in all fields")
+    return
   }
 
+  try {
+    const response = await fetch("/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        first_name: firstName,
+        last_name: lastName,
+        email: username,
+        password,
+        phone_number: phoneNumber,
+        country,
+        role: userRole, // "client" or "trainer"
+      }),
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      throw new Error(data?.detail || "Something went wrong")
+    }
+
+    alert(`Account registered successfully as ${userRole}`)
+    router.push("/login")
+  } catch (error: any) {
+    console.error("Error during signup:", error)
+    alert(error?.message || "Network error. Make sure your backend is reachable")
+  }
+}
   const countries = [
     "Netherlands", "Belgium", "Germany", "France", "United Kingdom", 
     "Spain", "Italy", "Portugal", "Switzerland", "Austria",
