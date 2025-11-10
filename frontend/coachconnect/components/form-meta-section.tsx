@@ -3,8 +3,8 @@
 import { useFormStore } from "@/lib/form-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Save, FileText, Loader2, Pencil } from "lucide-react"
-import { useState } from "react"
+import { Save, FileText, Loader2 } from "lucide-react"
+import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -16,24 +16,23 @@ import {
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
-import { useUser } from "@/lib/user-context"  // Import user context hook
+import { useUser } from "@/lib/user-context" // ⬅️ add this
 
 type Props = {
-  /** When true, shows a sticky in-form actions bar while scrolling */
   stickyActions?: boolean
 }
 
 export function FormMetaSection({ stickyActions = true }: Props) {
   const { currentForm, saveForm, createNewForm, updateFormMetadata } = useFormStore()
   const { toast } = useToast()
-  const { user } = useUser()  // Get the logged-in user from the context
+  const { user } = useUser() // ⬅️ get user from context
   const [createOpen, setCreateOpen] = useState(false)
   const [name, setName] = useState(currentForm?.name ?? "")
   const [description, setDescription] = useState(currentForm?.description ?? "")
   const [isSaving, setIsSaving] = useState(false)
   const [isEditingName, setIsEditingName] = useState(false)
 
-  // Ensure the name and description are synced with the current form state
+  // hydrate once when a form appears
   if (currentForm && name === "" && currentForm.name) {
     setName(currentForm.name)
     setDescription(currentForm.description ?? "")
@@ -57,27 +56,39 @@ export function FormMetaSection({ stickyActions = true }: Props) {
   }
 
   const handleSaveForm = async () => {
-      console.log("Saving form for user email:", user?.email)
-    if (!currentForm || !user?.email) return  // Ensure email is available
+    console.log("[save] entered, user:", user, "currentForm?", !!currentForm)
+    if (!currentForm) {
+      toast({ title: "No form to save", variant: "destructive" })
+      return
+    }
+    if (!user?.email) {
+      toast({
+        title: "Missing user email",
+        description: "Please log in again before saving.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSaving(true)
     try {
-      // Save to local store first
+      // Save locally first
       saveForm()
 
-      // Send form data along with user email to the backend
+      // Send to backend via Next.js API route, INCLUDING userEmail
       const response = await fetch("/api/form-submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          ...currentForm, 
-          name, 
-          description, 
-          userEmail: user.email  // Add the logged-in user's email
+        body: JSON.stringify({
+          ...currentForm,
+          name,
+          description,
+          userEmail: user.email, // ⬅️ send email
         }),
       })
 
       if (!response.ok) {
-        const error = await response.json()
+        const error = await response.json().catch(() => ({}))
         throw new Error(error.error || "Failed to save form")
       }
 
@@ -89,7 +100,8 @@ export function FormMetaSection({ stickyActions = true }: Props) {
       console.error("[form] Error saving form:", error)
       toast({
         title: "Error saving form",
-        description: error instanceof Error ? error.message : "Failed to save form to database",
+        description:
+          error instanceof Error ? error.message : "Failed to save form to database",
         variant: "destructive",
       })
     } finally {
@@ -97,44 +109,41 @@ export function FormMetaSection({ stickyActions = true }: Props) {
     }
   }
 
+  const disabledReason = isSaving ? "saving" : !currentForm ? "no currentForm" : !user?.email ? "no email" : ""
+
   return (
     <section aria-label="Form details" className="w-full">
-      <div className="rounded-2xl border bg-card p-4 sm:p-6 mb-6">
-        <div className="flex items-start gap-3">
-          <FileText className="mt-1 h-5 w-5 text-primary shrink-0" />
-          <div className="w-full">
-            <div className="flex items-center gap-2">
-              <Input
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value)
-                  setIsEditingName(true)
-                }}
-                placeholder="Form title"
-                aria-label="Form title"
-                className="text-xl sm:text-2xl font-semibold"
-              />
-              <button
-                onClick={handleInlineUpdate}
-                className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-                title="Save title/description"
-              >
-                <Pencil className="h-4 w-4" />
-              </button>
-            </div>
+      <div className="rounded-lg border bg-card p-3 sm:p-4 mb-4">
+        <div className="flex items-start gap-2">
+          <FileText className="mt-1 h-4 w-4 text-primary shrink-0" />
+          <div className="w-full space-y-2">
+            <Input
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value)
+                setIsEditingName(true)
+              }}
+              placeholder="Form title"
+              aria-label="Form title"
+              className="h-9"
+            />
 
             <Textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value)
+                setIsEditingName(true)
+              }}
               placeholder="Add a description (optional)"
               aria-label="Form description"
-              className="mt-3"
+              className="min-h-[60px] resize-none"
+              rows={2}
             />
 
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">New Form</Button>
+                  <Button variant="outline" size="sm">New Form</Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
@@ -175,30 +184,29 @@ export function FormMetaSection({ stickyActions = true }: Props) {
                   Save details
                 </Button>
               )}
+
+              <Button
+                onClick={handleSaveForm}
+                disabled={isSaving || !currentForm || !user?.email} // ⬅️ also disable if no email
+                size="sm"
+                className="ml-auto"
+                title={disabledReason}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-3 w-3 mr-2" />
+                    Save Form
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         </div>
-      </div>
-
-      <div
-        className={[
-          "flex items-center justify-end gap-2",
-          stickyActions ? "sticky top-0 z-20 -mt-2 mb-4 bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/40 py-2" : "mb-6",
-        ].join(" ")}
-      >
-        <Button onClick={handleSaveForm} disabled={isSaving || !currentForm}>
-          {isSaving ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              Save Form
-            </>
-          )}
-        </Button>
       </div>
     </section>
   )

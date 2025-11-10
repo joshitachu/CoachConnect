@@ -43,11 +43,8 @@ export default function FormBuilderPage() {
   return (
     <div className="min-h-screen bg-background relative">
       <div className="container mx-auto px-6 py-8 space-y-6">
-        {/* 🧩 Replaces the old header: lives INSIDE the page, looks like a header */}
-        <div className="rounded-2xl border bg-card/60 backdrop-blur-sm shadow-sm">
           <div className="p-4 sm:p-6">
             <FormMetaSection stickyActions />
-          </div>
         </div>
 
         <Tabs defaultValue="builder" className="space-y-6">

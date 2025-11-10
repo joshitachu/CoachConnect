@@ -5,7 +5,7 @@ import requests
 from typing import Dict, Any
 from sqlalchemy import create_engine, text
 
-from DB.db import insert_onboarding_form_for_trainer_email, check_login, check_login_client ,create_account
+from DB.db import insert_onboarding_form_for_trainer_email, check_login, check_login_client ,create_account, show_form
 
 app = FastAPI()
 
@@ -24,9 +24,17 @@ async def get_forms(request: Request):
     
     # Extract JSON data from frontend
     data = await request.json()
-    print(data)
-    insert_onboarding_form_for_trainer_email('joshikabel@gmail.co,',data)
     print("Received data:", data)
+    
+    # Extract user email from the form data (if available)
+    user_email = data.get("userEmail", None)
+    print("User email:", user_email)
+    if user_email:
+        # Process form data with user email
+        insert_onboarding_form_for_trainer_email(user_email, data)
+    else:
+        return {"error": "User email not provided"}, 400
+    
     return {"message": "Form received successfully", "data": data}
 
 
@@ -100,32 +108,56 @@ def login(credentials: dict):
     print("Received login request:", credentials)
     email = credentials.get("email")
     password = credentials.get("password")
-    role= credentials.get("role")
+    role = credentials.get("role")
+    
     if not email or not password:
         print("Missing email or password")
         raise HTTPException(status_code=400, detail="Email and password required")
-    if role =="trainer":
-        if check_login(email, password):
-            print("2")
-            return {"success": True, "message": "Login successful"}
+    
+    if role == "trainer":
+        user_data = check_login(email, password)
+        if user_data:
+            return {
+                "success": True, 
+                "message": "Login successful",
+                "user": user_data
+            }
         else:
-            print("3")
             return {"success": False, "message": "Invalid credentials"}
     else:
-        if check_login_client(email, password):
-            print("2")
-            return {"success": True, "message": "Login successful"}
+        user_data = check_login_client(email, password)
+        if user_data:
+            return {
+                "success": True, 
+                "message": "Login successful",
+                "user": user_data
+            }
         else:
-            print("3")
             return {"success": False, "message": "Invalid credentials"}
 
 
 
 
 @app.get('/api/form-show')
-def get_form():
-    print("Received request for a specific form")
-    return JSONResponse(content=form)
+def get_form(request: Request):
+    # Get the email from the query parameters
+    email = request.query_params.get("email")
+
+    if not email:
+        raise HTTPException(status_code=422, detail="Email is required")
+    
+    print(f"Received request for form with email: {email}")
+    
+    # Simulate fetching form schemas based on the email
+    form_schemas = show_form(email)  # This function should return form data for the given email
+    print(f"Fetched form schemas: {form_schemas}")
+    
+    if form_schemas:
+        return {"form_schemas": form_schemas}
+    else:
+        raise HTTPException(status_code=404, detail="No forms found for the given email")
+
+
 
 db_url= "postgresql+psycopg2://coach_user:voetbal123@127.0.0.1:5432/coachconnect"
 engine = create_engine(db_url, pool_pre_ping=True)

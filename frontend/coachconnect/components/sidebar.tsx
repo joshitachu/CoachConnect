@@ -27,14 +27,13 @@ export default function Sidebar() {
     { id: "nutrition", label: "Nutrition", icon: Apple, href: "/dashboard?tab=nutrition" },
     { id: "workout", label: "Workout", icon: Activity, href: "/dashboard?tab=workout" },
     { id: "reports", label: "Reports", icon: FileText, href: "/dashboard?tab=reports" },
-    { id: "form-builder", label: "Form", icon: FileText, href: "/" },
   ]
 
   const tabs = isTrainer() ? trainerTabs : clientTabs
 
   // simple pathname-based active detection
   const activeId = (() => {
-    if (pathname === "/") return "form-builder"
+    if (pathname === "/formbuilder") return "form-builder"
     if (pathname.startsWith("/chat")) return "chat"
     if (pathname.startsWith("/dashboard")) {
       if (tabParam) return tabParam
@@ -45,7 +44,7 @@ export default function Sidebar() {
   })()
 
   return (
-    <aside className="w-56 h-screen sticky top-0 bg-card/60 border-r border-border/30 p-6 flex items-center justify-center">
+    <aside className="w-56 h-screen sticky top-0 bg-card/60 border-r border-border/30 p-6 flex flex-col items-center justify-between">
       <nav className="space-y-8 flex flex-col items-center w-full">
         {tabs.map((t) => {
           const IconComp = t.icon
@@ -68,6 +67,29 @@ export default function Sidebar() {
           )
         })}
       </nav>
+
+      {/* Forms Section */}
+      <div className="w-full mt-8 flex flex-col items-center gap-3">
+        <div className="w-full border-t border-border/20 mb-3 pt-4">
+          <span className="block text-xs font-semibold text-muted-foreground mb-2 px-2 tracking-widest uppercase">Forms</span>
+          <Button
+            variant={pathname.startsWith("/forms") ? "default" : "ghost"}
+            className="w-44 justify-start items-center gap-3 py-2 px-4 rounded-lg mb-1"
+            onClick={() => router.push("/forms")}
+          >
+            <FileText className="h-5 w-5 mr-2" />
+            My Forms
+          </Button>
+          <Button
+            variant={pathname === "/formbuilder" ? "default" : "outline"}
+            className="w-44 justify-start items-center gap-3 py-2 px-4 rounded-lg"
+            onClick={() => router.push("/formbuilder")}
+          >
+            <span className="h-5 w-5 mr-2 flex items-center justify-center text-lg font-bold">+</span>
+            Submit New Form
+          </Button>
+        </div>
+      </div>
     </aside>
   )
 }

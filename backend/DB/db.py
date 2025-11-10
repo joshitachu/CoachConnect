@@ -186,39 +186,90 @@ def get_forms_by_trainer_email(trainer_email: str) -> List[Dict[str, Any]]:
         return out
 
 # --- Login helper ---
-def check_login(email: str, password: str) -> bool:
+def check_login(email: str, password: str) -> Optional[Dict[str, Any]]:
     """
-    Check if a user with the given email and password exists.
-    Returns True if credentials are valid, else False.
+    Check if a trainer user with the given email and password exists.
+    Returns user data dict if credentials are valid, else None.
     """
     email = _sanitize_email(email)
     print(email, password)
+    
     with SessionLocal() as db:
         row = db.execute(
-            text("SELECT * FROM trainer_user WHERE email = :email "),
+            text("SELECT * FROM trainer_user WHERE email = :email AND password = :password"),
             {"email": email, "password": password}
         ).fetchone()
-
+        
         print("DB query result:", row)
-        return bool(row)
-    
+        
+        if row:
+            # Convert row to dictionary
+            # Assuming your columns are: id, first_name, last_name, email, country, phone_number, etc.
+            return {
+                "id": row.id,
+                "first_name": row.first_name,
+                "last_name": row.last_name,
+                "email": row.email,
+                "country": row.country if hasattr(row, 'country') else None,
+                "phone_number": row.phone_number if hasattr(row, 'phone_number') else None,
+                "role": "trainer"
+            }
+        return None
 
-def check_login_client(email: str, password: str) -> bool:
+def show_form(email: str) -> list:
+    """
+    Retrieve all form schemas for a trainer based on their email.
+    Returns a list of form_schema_json objects.
+    """
+    email = _sanitize_email(email)  # Make sure to sanitize email for safety
+    print(email)
+    
+    # Query the database
+    with SessionLocal() as db:
+        # Use the parameterized query correctly to retrieve all form schemas for the email
+        rows = db.execute(
+            text("""SELECT onboarding_forms.form_schema_json 
+                    FROM onboarding_forms
+                    JOIN trainer_user 
+                    ON onboarding_forms.trainers_code = trainer_user.trainers_code
+                    WHERE trainer_user.email = :email"""),  # Use :email as placeholder
+            {"email": email}  # Pass email as a parameter
+        ).fetchall()
+
+        print("DB query result:", rows)
+    
+        # If rows are found, return the list of form_schema_json; otherwise, return an empty list
+        return [row[0] for row in rows] if rows else []
+
+
+def check_login_client(email: str, password: str) -> Optional[Dict[str, Any]]:
     """
     Check if a client user with the given email and password exists.
-    Returns True if credentials are valid, else False.
+    Returns user data dict if credentials are valid, else None.
     """
     email = _sanitize_email(email)
     print(email, password)
+    
     with SessionLocal() as db:
         row = db.execute(
-            text("SELECT * FROM client_user WHERE email = :email "),
+            text("SELECT * FROM client_user WHERE email = :email AND password = :password"),
             {"email": email, "password": password}
         ).fetchone()
-
+        
         print("DB query result:", row)
-        return bool(row)
-    
+        
+        if row:
+            # Convert row to dictionary
+            return {
+                "id": row.id,
+                "first_name": row.first_name,
+                "last_name": row.last_name,
+                "email": row.email,
+                "country": row.country if hasattr(row, 'country') else None,
+                "phone_number": row.phone_number if hasattr(row, 'phone_number') else None,
+                "role": "client"
+            }
+        return None
 
 def create_account(client_data: Dict[str, Any], role: str) -> bool:
     """

@@ -26,31 +26,15 @@ const UserContext = createContext<UserContextType | undefined>(undefined)
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<User | null>(null)
 
-  // Load user from localStorage on component mount
-  useEffect(() => {
-    const savedUser = localStorage.getItem('coachconnect_user')
-    if (savedUser) {
-      try {
-        setUserState(JSON.parse(savedUser))
-      } catch (error) {
-        console.error('Error parsing saved user:', error)
-        localStorage.removeItem('coachconnect_user')
-      }
-    }
-  }, [])
+  // No authentication: always allow
+  useEffect(() => {}, [])
 
   const setUser = (newUser: User | null) => {
     setUserState(newUser)
-    if (newUser) {
-      localStorage.setItem('coachconnect_user', JSON.stringify(newUser))
-    } else {
-      localStorage.removeItem('coachconnect_user')
-    }
   }
 
   const logout = () => {
     setUserState(null)
-    localStorage.removeItem('coachconnect_user')
   }
 
   const isLoggedIn = () => {
