@@ -5,7 +5,7 @@ import requests
 from typing import Dict, Any
 from sqlalchemy import create_engine, text
 
-from DB.db import insert_onboarding_form_for_trainer_email, check_login, check_login_client ,create_account, show_form
+from DB.db import insert_onboarding_form_for_trainer_email, check_login, check_login_client ,create_account, show_form, resave, changeTrainerscode, fetch_trainer_code
 
 app = FastAPI()
 
@@ -16,6 +16,20 @@ def read_root():
 @app.get("/items/{item_id}")
 def read_item(item_id: int, q: str = None):
     return {"item_id": item_id, "q": q}
+
+
+@app.post('/form-resave')
+def save_form(form_data: Dict[str, Any]):
+    print("Received form data:", form_data)
+    form_id = form_data["formSchema"]
+
+    if(form_id):
+        resave(form_data)
+        return {"message": "Form saved successfully", "form_data": form_data}
+
+    else:
+        return {"error": "Form ID not provided"}, 400
+
 
 
 @app.post("/api/forms")
@@ -185,3 +199,49 @@ def save_onboarding_form(form_data: Dict[str, Any]):
     print("Received onboarding form data:", form_data)
     
     return {"message": "Onboarding form saved successfully", "form_data": form_data}
+
+@app.get("/trainercode")
+def get_trainer_code(code: str, email: str):
+    print("Received trainer code request:")
+    print(f"  Code:  {code}")
+    print(f"  Email: {email}")
+
+    code=fetch_trainer_code(email)
+    print(f"Fetched trainer code for {email}: {code}")
+
+    return {"trainer_code": code, "email": email}
+
+
+
+@app.post("/trainerchange")
+async def update_trainer_code(request: Request):
+ 
+    try:
+        data = await request.json()
+        code = data.get("code")
+        email = data.get("email")
+        print("Received data for trainer code change:", data)
+
+        if not code or not email:
+            return {"error": "Both 'code' and 'email' are required"}
+        
+        changeTrainerscode(data)
+
+        # Convert to uppercase / lowercase for consistency
+        code = code.upper()
+        email = email.lower()
+
+        print(f"Trainer code change request received:")
+        print(f"  Code:  {code}")
+        print(f"  Email: {email}")
+
+        return {
+            "success": True,
+            "message": f"Trainer code {code} linked to user {email}",
+            "trainer_code": code,
+            "email": email,
+        }
+
+    except Exception as e:
+        print("Error handling trainer change:", e)
+        return {"error": "Failed to process request", "details": str(e)}

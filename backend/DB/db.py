@@ -336,4 +336,118 @@ def create_account(client_data: Dict[str, Any], role: str) -> bool:
             return False
     
 
+def resave(form_data: Dict[str, Any]) -> bool:
+    """
+    Resave the form data into the onboarding_forms table.
+    Returns True if successful, else False.
+    """
+    # formSchema is the nested object we care about
+    form_schema = form_data.get("formSchema") or {}
+    form_id = form_schema.get("id")
 
+    if not form_id:
+        print("Form ID is required for resaving.")
+        return False
+
+    # Use fields from formSchema (your payload structure)
+    title = form_schema.get("name", "Untitled form")
+    description = form_schema.get("description", "")
+    form_schema_json = form_schema  # SQLAlchemy will JSON-encode this for JSONB
+
+    with SessionLocal() as db:
+        try:
+            stmt = (
+                text("""
+                    UPDATE onboarding_forms
+                    SET
+                        title = :title,
+                        description = :description,
+                        form_schema_json = :form_schema_json,
+                        created_at = NOW()
+                    WHERE
+                        form_schema_json->>'id' = :form_id;
+                """)
+                .bindparams(
+                    bindparam("form_schema_json", type_=JSONB),
+                )
+            )
+
+            result = db.execute(
+                stmt,
+                {
+                    "title": title,
+                    "description": description,
+                    "form_schema_json": form_schema_json,
+                    "form_id": form_id,
+                },
+            )
+            db.commit()
+
+            if result.rowcount == 0:
+                print(f"No form found with id {form_id}")
+                return False
+
+            return True
+
+        except Exception as e:
+            print("Error resaving form:", e)
+            db.rollback()
+            return False
+        
+
+def changeTrainerscode(koppelcode: json) -> bool:
+    """
+    Change the trainers_code for a trainer user.
+    Returns True if successful, else False.
+    """
+    new_code = koppelcode["code"]
+    email = _sanitize_email(koppelcode['email'])
+    print(new_code, email)
+
+    if not new_code or not email:
+        print("Both new trainers_code and email are required.")
+        return False
+
+    with SessionLocal() as db:
+        try:
+            result = db.execute(
+                text("""
+                    UPDATE trainer_user
+                    SET trainers_code = :new_code
+                    WHERE email = :email;
+                """),
+                {"new_code": new_code, "email": email},
+            )
+            db.commit()
+
+            if result.rowcount == 0:
+                print(f"No trainer found with email {email}")
+                return False
+
+            return True
+
+        except Exception as e:
+            print("Error changing trainers_code:", e)
+            db.rollback()
+            return False
+        
+def fetch_trainer_code(email: str) -> Optional[str]:
+    """
+    Fetch the trainers_code for a trainer user based on email.
+    Returns the trainers_code if found, else None.
+    """
+    email = _sanitize_email(email)
+    print(email)
+
+    with SessionLocal() as db:
+        row = db.execute(
+            text("SELECT trainers_code FROM trainer_user WHERE email = :email"),
+            {"email": email}
+        ).fetchone()
+
+        print("DB query result:", row)
+
+        if row:
+            return row[0]  # Return the trainers_code
+        return None
+    
