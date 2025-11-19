@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { User, Lock, LogIn, Shield, GraduationCap } from "lucide-react"
+import { User, Lock, LogIn, GraduationCap } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import Link from "next/link"
@@ -16,69 +16,97 @@ export default function LoginPage() {
   const { setUser } = useUser()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
-  const [trainerCode, setTrainerCode] = useState("")
   const [userRole, setUserRole] = useState("client")
   const [loading, setLoading] = useState(false)
 
- const handleLogin = async () => {
-  if (!username || !password) {
-    alert("Please fill in both email and password")
-    return
-  }
+  const handleLogin = async () => {
+    if (!username || !password) {
+      alert("Please fill in both email and password")
+      return
+    }
 
-  setLoading(true)
-  try {
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: username,
-        password,
-        role: userRole,
-        trainer_code: trainerCode || null,
-      }),
-    })
+    setLoading(true)
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: username,
+          password,
+          role: userRole,
+        }),
+      })
 
-    const data = await res.json().catch(() => ({}))
+      const data = await res.json().catch(() => ({}))
 
-    if (res.ok && data.success && data.user) {
-      setUser(data.user)
-      alert(data.message || "Login successful")
-      router.push("/dashboard")
-    } else if (res.ok && data.success) {
-      // If backend does not return user, fallback to demo user
+      if (res.ok && data.success && data.user) {
+        setUser(data.user)
+        
+        // For clients, check if they have linked trainers
+        if (userRole === "client") {
+          const checkRes = await fetch("/api/client/check-trainer", {
+            credentials: "include"
+          })
+          const checkData = await checkRes.json()
+          
+          if (!checkData.has_trainer) {
+            // No trainer linked - go to onboarding
+            router.push("/onboarding/trainer")
+            return
+          } else {
+            // Has trainer(s) - go to trainer selection page
+            router.push("/select-trainer")
+            return
+          }
+        }
+        
+        // Trainers go directly to dashboard
+        alert(data.message || "Login successful")
+        router.push("/dashboard")
+      } else if (res.ok && data.success) {
+        // Fallback to demo user
+        setUser({
+          id: 1,
+          first_name: "",
+          last_name: "",
+          email: username,
+          country: "N/A",
+          phone_number: "N/A",
+          role: userRole,
+        })
+        alert(data.message || "Login successful (demo mode)")
+        
+        // Demo clients should also go to trainer selection
+        if (userRole === "client") {
+          router.push("/select-trainer")
+        } else {
+          router.push("/dashboard")
+        }
+      } else {
+        alert(data.message || "Invalid credentials")
+      }
+    } catch (err: any) {
+      // Fallback to demo mode if API fails
       setUser({
         id: 1,
-        first_name: "",
-        last_name: "",
+        first_name: "Demo",
+        last_name: "User",
         email: username,
         country: "N/A",
         phone_number: "N/A",
         role: userRole,
       })
-      alert(data.message || "Login successful (demo mode)")
-      router.push("/dashboard")
-    } else {
-      alert(data.message || "Invalid credentials")
+      alert("Login successful (demo mode, API unreachable)")
+      
+      if (userRole === "client") {
+        router.push("/select-trainer")
+      } else {
+        router.push("/dashboard")
+      }
+    } finally {
+      setLoading(false)
     }
-  } catch (err: any) {
-    // Fallback to demo mode if API fails (for dev)
-    setUser({
-      id: 1,
-      first_name: "Demo",
-      last_name: "User",
-      email: username,
-      country: "N/A",
-      phone_number: "N/A",
-      role: userRole,
-    })
-    alert("Login successful (demo mode, API unreachable)")
-    router.push("/dashboard")
-  } finally {
-    setLoading(false)
   }
-}
-
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -139,26 +167,9 @@ export default function LoginPage() {
                       placeholder="Enter your password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                       className="bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20 h-11"
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="trainerCode" className="text-foreground flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      Trainer Code
-                    </Label>
-                    <Input
-                      id="trainerCode"
-                      type="text"
-                      placeholder="Enter trainer code (optional)"
-                      value={trainerCode}
-                      onChange={(e) => setTrainerCode(e.target.value)}
-                      className="bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20 h-11"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Leave empty for personal use or enter code to join trainer environment
-                    </p>
                   </div>
                 </div>
               </TabsContent>
@@ -191,6 +202,7 @@ export default function LoginPage() {
                       placeholder="Enter your trainer password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                       className="bg-input border-border/50 focus:border-primary/50 focus:ring-primary/20 h-11"
                     />
                   </div>

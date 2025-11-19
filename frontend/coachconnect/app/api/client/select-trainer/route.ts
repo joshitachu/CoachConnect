@@ -1,59 +1,48 @@
-
-// ===================================
 // app/api/client/select-trainer/route.ts
-import { NextRequest, NextResponse } from "next/server"
-import { verifySession } from "@/lib/auth"
+import { NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.BACKEND_URL?.replace(/\/$/, "") || "http://localhost:8000"
+const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
 
-export async function POST(req: NextRequest) {
-  const token = req.cookies.get("session")?.value
-  if (!token) {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 })
-  }
+export const dynamic = "force-dynamic";
 
+export async function POST(request: Request) {
   try {
-    const session = await verifySession(token)
-    
-    if (session.role !== "client") {
-      return NextResponse.json({ detail: "Only clients can select trainers" }, { status: 403 })
+    const cookie = request.headers.get("cookie") || "";
+    const auth = request.headers.get("authorization") || "";
+    const body = await request.json().catch(() => null);
+
+    if (!body || typeof body.trainer_id !== "number") {
+      return NextResponse.json(
+        { error: "trainer_id (number) is required" },
+        { status: 400 }
+      );
     }
 
-    const body = await req.json()
-    const { trainer_id } = body
-
-    if (!trainer_id) {
-      return NextResponse.json({ detail: "trainer_id required" }, { status: 400 })
-    }
-
-    // Send to backend to establish the client-trainer relationship
     const res = await fetch(`${BACKEND_URL}/client/select-trainer`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
+        "content-type": "application/json",
+        cookie,
+        authorization: auth,
+        "x-forwarded-host": request.headers.get("host") || "",
       },
-      body: JSON.stringify({
-        client_id: session.sub,
-        trainer_id,
-      }),
-    })
+      body: JSON.stringify(body),
+    });
 
-    const data = await res.json()
-    
-    if (res.ok) {
-      // Optionally update the session cookie with selected trainer info
-      // For now, just return success
-      return NextResponse.json({ 
-        success: true, 
-        message: "Trainer selected successfully",
-        trainer_id 
-      })
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      return NextResponse.json(
+        { error: data?.detail || "Failed to select trainer" },
+        { status: res.status || 502 }
+      );
     }
 
-    return NextResponse.json(data, { status: res.status })
-  } catch (err) {
-    console.error("Error selecting trainer:", err)
-    return NextResponse.json({ detail: "Failed to select trainer" }, { status: 500 })
+    return NextResponse.json(data, { status: 200 });
+  } catch (_e) {
+    return NextResponse.json(
+      { error: "Backend unavailable" },
+      { status: 502 }
+    );
   }
 }

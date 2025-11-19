@@ -4,8 +4,11 @@ from fastapi.responses import JSONResponse
 import requests
 from typing import Dict, Any
 from sqlalchemy import create_engine, text
+from typing import Optional
+from fastapi import FastAPI, Query, HTTPException, Body
 
-from DB.db import insert_onboarding_form_for_trainer_email, check_login, check_login_client ,create_account, show_form, resave, changeTrainerscode, fetch_trainer_code
+
+from DB.db import insert_onboarding_form_for_trainer_email, check_login, check_login_client ,create_account, show_form, resave, changeTrainerscode, fetch_trainer_code, client_check_trainer,get_forms_for_trainer_code,linktrainercode,save_form_details_client
 
 app = FastAPI()
 
@@ -152,26 +155,16 @@ def login(credentials: dict):
 
 
 
-@app.get('/api/form-show')
-def get_form(request: Request):
-    # Get the email from the query parameters
-    email = request.query_params.get("email")
+@app.post("/form-show")
+def form_show(payload: dict = Body(...)):
+    trainer_code = payload.get("trainer_code")
+    if not trainer_code:
+        raise HTTPException(status_code=422, detail="trainer_code is required")
 
-    if not email:
-        raise HTTPException(status_code=422, detail="Email is required")
-    
-    print(f"Received request for form with email: {email}")
-    
-    # Simulate fetching form schemas based on the email
-    form_schemas = show_form(email)  # This function should return form data for the given email
-    print(f"Fetched form schemas: {form_schemas}")
-    
-    if form_schemas:
-        return {"form_schemas": form_schemas}
-    else:
-        raise HTTPException(status_code=404, detail="No forms found for the given email")
-
-
+    forms = get_forms_for_trainer_code(trainer_code)
+    if not forms:
+        raise HTTPException(status_code=404, detail="No forms found for this trainer")
+    return {"form_schemas": forms}
 
 db_url= "postgresql+psycopg2://coach_user:voetbal123@127.0.0.1:5432/coachconnect"
 engine = create_engine(db_url, pool_pre_ping=True)
@@ -245,3 +238,147 @@ async def update_trainer_code(request: Request):
     except Exception as e:
         print("Error handling trainer change:", e)
         return {"error": "Failed to process request", "details": str(e)}
+    
+@app.get("/client/check-trainer")
+def check_trainer_association(client_email: str, trainer_code: Optional[str] = None):
+    print("Received check trainer association request:")
+    print(f"  Client Email: {client_email}")
+    print(f"  Trainer Code: {trainer_code}")
+
+    result = client_check_trainer(client_email)  # returns {"has_trainer": bool, "trainers": [...]}
+    print("Check result:", result)
+
+    has_trainer = result.get("has_trainer", False)
+    trainers = result.get("trainers", [])
+    
+    # Transform trainers to match frontend interface
+    formatted_trainers = []
+    for trainer in trainers:
+        formatted_trainers.append({
+            "id": trainer.get("id"),  # Make sure your client_check_trainer includes this
+            "first_name": trainer.get("first_name"),
+            "last_name": trainer.get("last_name"),
+            "email": trainer.get("email"),  # Make sure your client_check_trainer includes this
+            "trainer_code": trainer.get("code")  # Map 'code' to 'trainer_code'
+        })
+    
+    print("Formatted trainers:", formatted_trainers)
+    
+    trainer_info = formatted_trainers[0] if formatted_trainers else None
+
+    return {
+        "client_email": 'joshuakabel100@gmail.com',
+        "has_trainer": has_trainer,
+        "trainers": formatted_trainers,  # Return formatted trainers
+        "trainer": trainer_info,
+        "trainer_code": trainer_info["trainer_code"] if trainer_info else None,
+        "is_associated": has_trainer,
+    }
+
+@app.post("/client/link-trainer")
+def link_trainer(payload: dict = Body(...)):
+    client_email = payload.get("client_email")
+    trainer_code = payload.get("trainer_code")
+
+    if not client_email or not trainer_code:
+        return {"success": False, "message": "client_email and trainer_code are required"}
+
+    trainer_code = trainer_code.strip().upper()
+
+    try:
+        # 🔹 call your linking function
+        result = linktrainercode(client_email, trainer_code)
+    except Exception as e:
+        print("Error linking trainer:", e)
+        return {"success": False, "message": "Server error while linking trainer"}
+
+    # ✅ normalize result
+    if not result:
+        return {"success": False, "message": "Invalid trainer code or already linked"}
+
+    # if your linktrainercode returns a trainer dict:
+    if isinstance(result, dict):
+        return {
+            "success": True,
+            "message": "Successfully linked with trainer",
+            "trainer": result,
+        }
+
+    # fallback if it just returns True or ID
+    return {
+        "success": True,
+        "message": "Successfully linked with trainer",
+        "trainer": {"trainer_code": trainer_code},
+    }
+
+
+
+@app.get('/api/formshowfortrainer')
+def get_form(request: Request):
+    # Get the email from the query parameters
+    email = request.query_params.get("email")
+
+    if not email:
+        raise HTTPException(status_code=422, detail="Email is required")
+    
+    print(f"Received request for form with email: {email}")
+    
+    # Simulate fetching form schemas based on the email
+    form_schemas = show_form(email)  # This function should return form data for the given email
+    print(f"Fetched form schemas: {form_schemas}")
+    
+    if form_schemas:
+        return {"form_schemas": form_schemas}
+    else:
+        raise HTTPException(status_code=404, detail="No forms found for the given email")
+
+
+@app.post('/form-submit-client')
+def submit_form_client(submission_data: Dict[str, Any]):
+    """
+    Handle client form submission.
+    Expected payload:
+    {
+        "email": "client@example.com",
+        "trainer_code": "P4ON0",
+        "form_id": "form-1762988893132",
+        "values": { "field-1762988910056": "joshua", ... }
+    }
+    """
+    print("Received form submission data:", submission_data)
+    
+    # Extract required fields
+    email = submission_data.get("email")
+    trainer_code = submission_data.get("trainer_code")
+    form_id = submission_data.get("form_id")
+    values = submission_data.get("values", {})
+    
+    # Validate required fields
+    if not email:
+        return {"success": False, "detail": "Email is required"}, 400
+    
+    if not trainer_code:
+        return {"success": False, "detail": "Trainer code is required"}, 400
+    
+    if not form_id:
+        return {"success": False, "detail": "Form ID is required"}, 400
+    
+    # Save form data
+    success = save_form_details_client(
+        client_email=email,
+        trainers_code=trainer_code,
+        form_id=form_id,
+        form_data=values
+    )
+    
+    if success:
+        return {
+            "success": True,
+            "message": "Form submitted successfully",
+            "form_id": form_id
+        }
+    else:
+        return {
+            "success": False,
+            "detail": "Failed to save form submission"
+        }, 500

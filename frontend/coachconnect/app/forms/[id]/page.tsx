@@ -67,7 +67,7 @@ export default function FormEditPage() {
 
       setLoading(true)
       try {
-        const res = await fetch(`/api/form-show?email=${encodeURIComponent(user.email)}`, {
+        const res = await fetch(`/api/formshowfortrainer?email=${encodeURIComponent(user.email)}`, {
           method: "GET"
         })
         

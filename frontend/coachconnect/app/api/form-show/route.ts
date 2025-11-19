@@ -1,43 +1,31 @@
 import { NextResponse } from "next/server"
 
-export async function GET(request: Request) {
-  try {
-    // Get the email query parameter from the request
-    const url = new URL(request.url)
-    const email = url.searchParams.get("email")
+const BACKEND_URL = process.env.BACKEND_URL || "http://127.0.0.1:8000"
+export const dynamic = "force-dynamic"
 
-    if (!email) {
-      return NextResponse.json(
-        { error: "User not logged in" },
-        { status: 401 }
-      )
+export async function POST(request: Request) {
+  try {
+    const body = await request.json().catch(() => ({} as any))
+    const url = new URL(request.url)
+    const trainer_code =
+      body?.trainer_code ?? url.searchParams.get("trainer_code")
+
+    if (!trainer_code) {
+      return NextResponse.json({ detail: "trainer_code is required" }, { status: 422 })
     }
 
-    // Make the GET request to your Python backend with the email
-    const res = await fetch(`http://127.0.0.1:8000/api/form-show?email=${encodeURIComponent(email)}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
+    const upstream = await fetch(`${BACKEND_URL}/form-show`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({ trainer_code }),
     })
 
-    // Check if the response is successful
-    if (!res.ok) {
-      const errorText = await res.text()
-      console.error(`Backend error: ${res.status} - ${errorText}`)
-      throw new Error(`Backend error: ${res.statusText}`)
-    }
+    const raw = await upstream.text()
+    const data = raw ? JSON.parse(raw) : {}
 
-    const form = await res.json()
-
-    // Return the response from the backend (which has the structure {form_schemas: [...]})
-    console.log("Fetched form configuration:", form)
-    return NextResponse.json(form)
-  } catch (error) {
-    console.error("Error fetching form:", error)
-    return NextResponse.json(
-      { error: "Failed to load form configuration" },
-      { status: 500 }
-    )
+    return NextResponse.json(data, { status: upstream.status })
+  } catch {
+    return NextResponse.json({ detail: "Backend unavailable" }, { status: 502 })
   }
 }

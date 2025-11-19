@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-
+import * as React from "react"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,108 +12,160 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Slider } from "@/components/ui/slider"
 import { Loader2 } from "lucide-react"
+import { useUser } from "@/lib/user-context"
 
-/**
- * These TypeScript interfaces define the expected JSON structure.
- * The component will dynamically render ANY form that matches this structure,
- * regardless of the number of fields, field types, or options.
- */
+type FieldType =
+  | "text" | "email" | "number" | "textarea" | "select" | "checkbox" | "radio"
+  | "date" | "time" | "datetime-local" | "file" | "url" | "tel" | "password"
+  | "range" | "color"
+
 interface FormField {
   id: string
-  type:
-    | "text"
-    | "email"
-    | "number"
-    | "textarea"
-    | "select"
-    | "checkbox"
-    | "radio"
-    | "date"
-    | "time"
-    | "datetime-local"
-    | "file"
-    | "url"
-    | "tel"
-    | "password"
-    | "range"
-    | "color"
+  type: FieldType
   label: string
   placeholder?: string
   required: boolean
-  options?: string[] // For select, radio, or multiple checkboxes
-  min?: number // For number, range, date, time
-  max?: number // For number, range, date, time
-  step?: number // For number, range
-  accept?: string // For file input
+  options?: string[]
+  min?: number
+  max?: number
+  step?: number
+  accept?: string
   validation: any[]
   visibilityRules: any[]
 }
 
-interface FormData {
+interface FormSchema {
   id: string
   name: string
   description: string
-  fields: FormField[]
+  fields?: FormField[]
   createdAt: string
   updatedAt: string
 }
 
-/**
- * DynamicForm Component
- *
- * This component is FULLY DYNAMIC and will render any form structure from your backend.
- * It automatically handles ALL common HTML input types and form field types.
- */
+interface ApiResponse {
+  form_schemas: FormSchema[]
+}
+
 export function DynamicForm() {
-  const [formData, setFormData] = useState<FormData | null>(null)
+  const { user, getTrainerCode, markOnboardingComplete } = useUser()
+  const [formData, setFormData] = useState<FormSchema | null>(null)
   const [loading, setLoading] = useState(true)
   const [formValues, setFormValues] = useState<Record<string, any>>({})
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
+  // Fetch the trainer's form for this client
   useEffect(() => {
+    let cancelled = false
+
     async function fetchForm() {
-      try {
-        const response = await fetch("/api/form-show")
-        const data = await response.json()
-        setFormData(data)
-      } catch (error) {
-        console.error("[v0] Error fetching form:", error)
-      } finally {
+      const trainerCode = getTrainerCode()
+
+      if (!trainerCode) {
+        setError("Selecteer eerst een trainer om het juiste formulier te laden.")
+        setFormData(null)
         setLoading(false)
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/form-show`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          cache: "no-store",
+          body: JSON.stringify({ trainer_code: trainerCode }),
+        })
+
+        if (!response.ok) {
+          if (response.status === 401) throw new Error("Log eerst in om dit formulier te bekijken.")
+          const body = await response.json().catch(() => ({}))
+          throw new Error(body?.detail || `HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        const data: ApiResponse = await response.json()
+
+        if (!data.form_schemas || data.form_schemas.length === 0) {
+          throw new Error("Geen formulieren gevonden voor deze trainer.")
+        }
+
+        const firstForm = data.form_schemas[0]
+        const safeData: FormSchema = {
+          id: firstForm?.id ?? "unknown",
+          name: firstForm?.name ?? "Onboarding",
+          description: firstForm?.description ?? "",
+          fields: Array.isArray(firstForm?.fields) ? firstForm.fields : [],
+          createdAt: firstForm?.createdAt ?? new Date().toISOString(),
+          updatedAt: firstForm?.updatedAt ?? new Date().toISOString(),
+        }
+
+        if (!cancelled) {
+          setFormData(safeData)
+          setError(null)
+        }
+      } catch (err) {
+        console.error("[DynamicForm] Error fetching form:", err)
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load form")
+          setFormData(null)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
       }
     }
 
     fetchForm()
-  }, [])
+    return () => { cancelled = true }
+  }, [getTrainerCode])
 
   const handleInputChange = (fieldId: string, value: any) => {
-    setFormValues((prev) => ({
-      ...prev,
-      [fieldId]: value,
-    }))
+    setFormValues((prev) => ({ ...prev, [fieldId]: value }))
   }
 
   const handleCheckboxArrayChange = (fieldId: string, option: string, checked: boolean) => {
     setFormValues((prev) => {
       const currentValues = prev[fieldId] || []
-      if (checked) {
-        return { ...prev, [fieldId]: [...currentValues, option] }
-      } else {
-        return { ...prev, [fieldId]: currentValues.filter((v: string) => v !== option) }
-      }
+      return checked
+        ? { ...prev, [fieldId]: [...currentValues, option] }
+        : { ...prev, [fieldId]: currentValues.filter((v: string) => v !== option) }
     })
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async () => {
+    if (!formData) return
     setSubmitting(true)
+    try {
+      const trainerCode = getTrainerCode()
+      if (!trainerCode) throw new Error("Geen trainer code beschikbaar.")
 
-    // TODO: Replace this with your actual form submission logic
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+      // Voeg email toe aan payload
+      const payload = {
+        trainer_code: trainerCode,
+        form_id: formData.id,
+        values: formValues,
+        email: user?.email || null, // Huidige gebruikers email
+      }
 
-    console.log("[v0] Form submitted with values:", formValues)
-    alert("Form submitted successfully!")
-    setSubmitting(false)
+      const res = await fetch("/api/form-submit-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      })
+
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.detail || "Kon formulier niet opslaan.")
+      }
+
+      // Flip flag locally and go to dashboard
+      markOnboardingComplete()
+      window.location.href = "/dashboard"
+    } catch (e: any) {
+      alert(e?.message || "Er ging iets mis bij het opslaan.")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (loading) {
@@ -127,10 +178,21 @@ export function DynamicForm() {
     )
   }
 
+  if (error) {
+    return (
+      <Card className="border-border shadow-lg">
+        <CardContent className="py-12 text-center">
+          <p className="text-destructive font-medium mb-2">Error loading form</p>
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
   if (!formData) {
     return (
       <Card className="border-border shadow-lg">
-        <CardContent className="py-12 text-center text-muted-foreground">Failed to load form data</CardContent>
+        <CardContent className="py-12 text-center text-muted-foreground">No form data available</CardContent>
       </Card>
     )
   }
@@ -141,7 +203,7 @@ export function DynamicForm() {
       placeholder: field.placeholder || `Enter ${field.label}`,
       required: field.required,
       className: "w-full focus-visible:ring-ring",
-    }
+    } as const
 
     switch (field.type) {
       case "text":
@@ -157,7 +219,6 @@ export function DynamicForm() {
             onChange={(e) => handleInputChange(field.id, e.target.value)}
           />
         )
-
       case "number":
         return (
           <Input
@@ -170,7 +231,6 @@ export function DynamicForm() {
             onChange={(e) => handleInputChange(field.id, e.target.value)}
           />
         )
-
       case "date":
       case "time":
       case "datetime-local":
@@ -178,13 +238,12 @@ export function DynamicForm() {
           <Input
             {...commonInputProps}
             type={field.type}
-            min={field.min}
-            max={field.max}
+            min={field.min as number | undefined}
+            max={field.max as number | undefined}
             value={formValues[field.id] || ""}
             onChange={(e) => handleInputChange(field.id, e.target.value)}
           />
         )
-
       case "color":
         return (
           <div className="flex items-center gap-3">
@@ -198,7 +257,6 @@ export function DynamicForm() {
             <span className="text-sm text-muted-foreground">{formValues[field.id] || "#000000"}</span>
           </div>
         )
-
       case "file":
         return (
           <Input
@@ -209,7 +267,6 @@ export function DynamicForm() {
             className="cursor-pointer"
           />
         )
-
       case "range":
         return (
           <div className="space-y-2">
@@ -218,16 +275,15 @@ export function DynamicForm() {
               min={field.min || 0}
               max={field.max || 100}
               step={field.step || 1}
-              value={[formValues[field.id] || field.min || 0]}
+              value={[formValues[field.id] ?? field.min ?? 0]}
               onValueChange={(value) => handleInputChange(field.id, value[0])}
               className="w-full"
             />
             <div className="text-sm text-muted-foreground text-center">
-              Value: {formValues[field.id] || field.min || 0}
+              Value: {formValues[field.id] ?? field.min ?? 0}
             </div>
           </div>
         )
-
       case "textarea":
         return (
           <Textarea
@@ -239,15 +295,10 @@ export function DynamicForm() {
             className="w-full min-h-[120px] focus-visible:ring-ring"
           />
         )
-
       case "select":
-        return field.options ? (
-          <Select
-            value={formValues[field.id] || ""}
-            onValueChange={(value) => handleInputChange(field.id, value)}
-            required={field.required}
-          >
-            <SelectTrigger id={field.id} className="w-full focus:ring-ring">
+        return Array.isArray(field.options) ? (
+          <Select value={formValues[field.id] || ""} onValueChange={(value) => handleInputChange(field.id, value)}>
+            <SelectTrigger id={field.id} className="w-full focus-visible:ring-ring">
               <SelectValue placeholder={field.placeholder || `Select ${field.label}`} />
             </SelectTrigger>
             <SelectContent>
@@ -259,14 +310,9 @@ export function DynamicForm() {
             </SelectContent>
           </Select>
         ) : null
-
       case "radio":
-        return field.options ? (
-          <RadioGroup
-            value={formValues[field.id] || ""}
-            onValueChange={(value) => handleInputChange(field.id, value)}
-            required={field.required}
-          >
+        return Array.isArray(field.options) ? (
+          <RadioGroup value={formValues[field.id] || ""} onValueChange={(value) => handleInputChange(field.id, value)}>
             {field.options.map((option) => (
               <div key={option} className="flex items-center space-x-2">
                 <RadioGroupItem value={option} id={`${field.id}-${option}`} />
@@ -277,10 +323,8 @@ export function DynamicForm() {
             ))}
           </RadioGroup>
         ) : null
-
       case "checkbox":
-        // If options exist, render multiple checkboxes
-        if (field.options && field.options.length > 0) {
+        if (Array.isArray(field.options) && field.options.length > 0) {
           return (
             <div className="space-y-3">
               {field.options.map((option) => (
@@ -288,7 +332,7 @@ export function DynamicForm() {
                   <Checkbox
                     id={`${field.id}-${option}`}
                     checked={(formValues[field.id] || []).includes(option)}
-                    onCheckedChange={(checked) => handleCheckboxArrayChange(field.id, option, checked as boolean)}
+                    onCheckedChange={(checked) => handleCheckboxArrayChange(field.id, option, Boolean(checked))}
                   />
                   <Label htmlFor={`${field.id}-${option}`} className="font-normal cursor-pointer">
                     {option}
@@ -298,25 +342,24 @@ export function DynamicForm() {
             </div>
           )
         }
-        // Single checkbox
         return (
           <div className="flex items-center space-x-2">
             <Checkbox
               id={field.id}
-              checked={formValues[field.id] || false}
-              onCheckedChange={(checked) => handleInputChange(field.id, checked)}
-              required={field.required}
+              checked={Boolean(formValues[field.id])}
+              onCheckedChange={(checked) => handleInputChange(field.id, Boolean(checked))}
             />
             <Label htmlFor={field.id} className="font-normal cursor-pointer">
               {field.placeholder || field.label}
             </Label>
           </div>
         )
-
       default:
         return <p className="text-sm text-muted-foreground">Unsupported field type: {field.type}</p>
     }
   }
+
+  const fields: FormField[] = Array.isArray(formData?.fields) ? formData.fields : []
 
   return (
     <Card className="border-border shadow-lg">
@@ -325,22 +368,26 @@ export function DynamicForm() {
         <CardDescription className="text-base text-muted-foreground">{formData.description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {formData.fields.map((field) => (
-            <div key={field.id} className="space-y-2">
-              {field.type !== "checkbox" || (field.options && field.options.length > 0) ? (
-                <Label htmlFor={field.id} className="text-sm font-medium text-foreground capitalize">
-                  {field.label}
-                  {field.required && <span className="text-destructive ml-1">*</span>}
-                </Label>
-              ) : null}
-              {renderField(field)}
-            </div>
-          ))}
+        <div className="space-y-6">
+          {fields.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No fields found for this form.</p>
+          ) : (
+            fields.map((field) => (
+              <div key={field.id} className="space-y-2">
+                {field.type !== "checkbox" || (Array.isArray(field.options) && field.options.length > 0) ? (
+                  <Label htmlFor={field.id} className="text-sm font-medium text-foreground capitalize">
+                    {field.label}
+                    {field.required && <span className="text-destructive ml-1">*</span>}
+                  </Label>
+                ) : null}
+                {renderField(field)}
+              </div>
+            ))
+          )}
 
           <Button
-            type="submit"
-            disabled={submitting}
+            onClick={handleSubmit}
+            disabled={submitting || fields.length === 0}
             className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold py-6 text-base"
           >
             {submitting ? (
@@ -352,7 +399,7 @@ export function DynamicForm() {
               "Submit Form"
             )}
           </Button>
-        </form>
+        </div>
       </CardContent>
     </Card>
   )

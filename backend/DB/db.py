@@ -451,3 +451,207 @@ def fetch_trainer_code(email: str) -> Optional[str]:
             return row[0]  # Return the trainers_code
         return None
     
+
+
+def client_check_trainer(email: str) -> Dict:
+    """
+    Check if a client (by email) has any linked trainers.
+
+    Returns:
+    {
+        "has_trainer": bool,
+        "trainers": [
+            {
+                "code": str,
+                "first_name": str,
+                "last_name": str,
+                "email": str,
+                "id": int
+            }
+        ]
+    }
+    """
+    email = _sanitize_email(email)
+
+    query = """
+        SELECT tu.trainers_code, tu.first_name, tu.last_name, tu.email, tu.id
+        FROM client_user cu
+        JOIN client_trainer ct ON ct.client_id = cu.id
+        JOIN trainer_user tu ON tu.trainers_code = ct.trainers_code
+        WHERE cu.email = :email;
+    """
+
+    with SessionLocal() as db:
+        rows = db.execute(text(query), {"email": email}).fetchall()
+
+    if not rows:
+        return {"has_trainer": False, "trainers": []}
+
+    trainers = [
+        {
+            "code": row[0],
+            "first_name": row[1],
+            "last_name": row[2],
+            "email": row[3],
+            "id": row[4],
+        }
+        for row in rows
+    ]
+
+    return {
+        "has_trainer": True,
+        "trainers": trainers
+    }
+
+
+def fetch_trainer_code_based_of_client(trainerscode: str) -> Optional[str]:
+    """
+    Fetch the trainers_code for a trainer user based on email.
+    Returns the trainers_code if found, else None.
+    """
+    email = _sanitize_email(email)
+    print(email)
+
+    with SessionLocal() as db:
+        row = db.execute(
+            text("SELECT trainers_code FROM trainer_user WHERE email = :email"),
+            {"email": email}
+        ).fetchone()
+
+        print("DB query result:", row)
+
+        if row:
+            return row[0]  # Return the trainers_code
+        return None
+    
+def get_forms_for_trainer_code(trainers_code: str) -> List[Dict[str, Any]]:
+    """
+    Retrieve all form schemas for a trainer based on their trainers_code.
+    Returns a list of form_schema_json objects.
+    """
+    with SessionLocal() as db:
+        rows = db.execute(
+            text("""
+                SELECT form_schema_json 
+                FROM onboarding_forms
+                WHERE trainers_code = :trainers_code
+            """),
+            {"trainers_code": trainers_code}
+        ).fetchall()
+
+        print("DB query result:", rows)
+
+        return [row[0] for row in rows] if rows else []
+    
+
+def linktrainercode(client_email: str, trainers_code: str) -> bool:
+    """
+    Link a client to a trainer using the trainers_code.
+    Returns True if successful, else False.
+    """
+    client_email = _sanitize_email(client_email)
+
+    with SessionLocal() as db:
+        try:
+            # Fetch client ID based on email
+            client_row = db.execute(
+                text("SELECT id FROM client_user WHERE email = :email"),
+                {"email": client_email}
+            ).fetchone()
+
+            if not client_row:
+                print(f"No client found with email {client_email}")
+                return False
+
+            client_id = client_row[0]
+
+            # Insert into client_trainer linking table
+            db.execute(
+                text("""
+                    INSERT INTO client_trainer (client_id, trainers_code)
+                    VALUES (:client_id, :trainers_code)
+                    ON CONFLICT DO NOTHING
+                """),
+                {"client_id": client_id, "trainers_code": trainers_code}
+            )
+            db.commit()
+            return True
+
+        except Exception as e:
+            print("Error linking trainer code:", e)
+            db.rollback()
+            return False
+        
+
+def save_form_details_client(client_email: str, trainers_code: str, form_id: str, form_data: Dict[str, Any]) -> bool:
+    """
+    Save client form submission and link to trainer.
+    Returns True if successful, else False.
+    
+    Table columns: id (PK), client_id, assigned_at, form_data (jsonb), trainers_code, submitted_at
+    """
+    client_email = _sanitize_email(client_email)
+    
+    with SessionLocal() as db:
+        try:
+            # Fetch client ID based on email
+            client_row = db.execute(
+                text("SELECT id FROM client_user WHERE email = :email"),
+                {"email": client_email}
+            ).fetchone()
+            
+            if not client_row:
+                print(f"No client found with email {client_email}")
+                return False
+            
+            client_id = client_row[0]
+            
+            # Convert form_data dict to JSON string for storage
+            form_data_json = json.dumps(form_data)
+            
+            # Check if a record already exists for this client
+            existing = db.execute(
+                text("SELECT id FROM client_onboarding_form WHERE client_id = :client_id"),
+                {"client_id": client_id}
+            ).fetchone()
+            
+            if existing:
+                # Update existing record
+                db.execute(
+                    text("""
+                        UPDATE client_onboarding_form 
+                        SET form_data = :form_data,
+                            trainers_code = :trainers_code,
+                            submitted_at = NOW()
+                        WHERE client_id = :client_id
+                    """),
+                    {
+                        "client_id": client_id,
+                        "form_data": form_data_json,
+                        "trainers_code": trainers_code
+                    }
+                )
+                print(f"Updated existing form for client {client_email}")
+            else:
+                # Insert new record
+                db.execute(
+                    text("""
+                        INSERT INTO client_onboarding_form (client_id, form_data, trainers_code, submitted_at)
+                        VALUES (:client_id, :form_data, :trainers_code, NOW())
+                    """),
+                    {
+                        "client_id": client_id,
+                        "form_data": form_data_json,
+                        "trainers_code": trainers_code
+                    }
+                )
+                print(f"Inserted new form for client {client_email}")
+            
+            db.commit()
+            print(f"Successfully saved form for client {client_email} with trainer code {trainers_code}")
+            return True
+            
+        except Exception as e:
+            print(f"Error saving form submission: {e}")
+            db.rollback()
+            return False

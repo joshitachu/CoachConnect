@@ -6,6 +6,8 @@ import { useSearchParams } from "next/navigation"
 import ChatList from "@/components/chat/ChatList"
 import ChatWindow from "@/components/chat/ChatWindow"
 
+
+
 export default function Dashboard() {
   const { user, isClient, isTrainer } = useUser()
   const [active, setActive] = useState<string>("dashboard")
@@ -64,7 +66,7 @@ export default function Dashboard() {
     if (isTrainer()) {
       return (
         <div className="flex-1 p-8">
-          <p className="text-muted-foreground mt-2">TTrainer scherm: {active}</p>
+          <p className="text-muted-foreground mt-2">Trainer scherm: {active}</p>
         </div>
       )
     }

@@ -8,7 +8,7 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
   const pathname = usePathname() || ""
   
   // Don't show sidebar/headers on login and signup pages
-  const isAuthPage = pathname === "/login" || pathname === "/signup" 
+  const isAuthPage = pathname === "/login" || pathname === "/signup" || pathname === "/onboarding/trainer"|| pathname === "/onboarding/client"|| pathname === "/select-trainer"
   
   if (isAuthPage) {
     return <>{children}</>
