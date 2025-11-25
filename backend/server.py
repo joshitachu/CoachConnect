@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import FastAPI, Query, HTTPException, Body
 
 
-from DB.db import insert_onboarding_form_for_trainer_email, check_login, check_login_client ,create_account, show_form, resave, changeTrainerscode, fetch_trainer_code, client_check_trainer,get_forms_for_trainer_code,linktrainercode,save_form_details_client
+from DB.db import insert_onboarding_form_for_trainer_email, check_login, check_login_client ,create_account, show_form, resave, changeTrainerscode, fetch_trainer_code, client_check_trainer, get_forms_for_trainer_code, linktrainercode, save_form_details_client, get_client_submissions_for_trainers_code
 
 app = FastAPI()
 
@@ -331,6 +331,27 @@ def get_form(request: Request):
         return {"form_schemas": form_schemas}
     else:
         raise HTTPException(status_code=404, detail="No forms found for the given email")
+
+
+@app.get('/api/form-submissions')
+def form_submissions(trainers_code: Optional[str] = None, email: Optional[str] = None):
+    """
+    Return client submissions visible to a trainer.
+    Provide either `trainers_code` or `email` (trainer email) as query parameter.
+    """
+    # Resolve trainers_code from email if provided
+    if not trainers_code and email:
+        trainers_code = fetch_trainer_code(email)
+
+    if not trainers_code:
+        raise HTTPException(status_code=422, detail="trainers_code or trainer email is required")
+
+    try:
+        submissions = get_client_submissions_for_trainers_code(trainers_code)
+        return {"submissions": submissions}
+    except Exception as e:
+        print("Error fetching submissions:", e)
+        raise HTTPException(status_code=500, detail="Failed to fetch submissions")
 
 
 @app.post('/form-submit-client')

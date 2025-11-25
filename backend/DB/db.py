@@ -542,6 +542,40 @@ def get_forms_for_trainer_code(trainers_code: str) -> List[Dict[str, Any]]:
         print("DB query result:", rows)
 
         return [row[0] for row in rows] if rows else []
+
+
+def get_client_submissions_for_trainers_code(trainers_code: str) -> List[Dict[str, Any]]:
+    """
+    Retrieve client-submitted onboarding forms for a given trainers_code.
+    Returns a list of dicts with client info and parsed form_data.
+    """
+    with SessionLocal() as db:
+        rows = db.execute(
+            text("""
+                SELECT cof.id, cof.client_id, cof.form_data, cof.trainers_code, cof.submitted_at,
+                       cu.email, cu.first_name, cu.last_name
+                  FROM client_onboarding_form cof
+                  JOIN client_user cu ON cof.client_id = cu.id
+                 WHERE cof.trainers_code = :trainers_code
+                 ORDER BY cof.submitted_at DESC
+            """),
+            {"trainers_code": trainers_code},
+        ).fetchall()
+
+        out: List[Dict[str, Any]] = []
+        for r in rows:
+            m = dict(r._mapping)
+            # form_data may be stored as JSON string; parse if needed
+            form_data = m.get("form_data")
+            try:
+                if isinstance(form_data, str):
+                    m["form_data"] = json.loads(form_data)
+            except Exception:
+                # leave as-is on parse error
+                pass
+            out.append(m)
+
+        return out
     
 
 def linktrainercode(client_email: str, trainers_code: str) -> bool:

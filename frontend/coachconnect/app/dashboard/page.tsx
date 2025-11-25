@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import ChatList from "@/components/chat/ChatList"
 import ChatWindow from "@/components/chat/ChatWindow"
+import TrainerSubmissions from "@/components/trainer-submissions"
 
 
 
@@ -67,6 +68,9 @@ export default function Dashboard() {
       return (
         <div className="flex-1 p-8">
           <p className="text-muted-foreground mt-2">Trainer scherm: {active}</p>
+          <div className="mt-6">
+            <TrainerSubmissions />
+          </div>
         </div>
       )
     }
