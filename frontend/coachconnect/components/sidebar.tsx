@@ -17,7 +17,7 @@ export default function Sidebar() {
   const clientTabs = [
     { id: "dashboard", label: "Dashboard", icon: AppWindow, href: "/dashboard?tab=dashboard" },
     { id: "chat", label: "Chat", icon: User, href: "/chat" },
-    { id: "nutrition", label: "Nutrition", icon: Apple, href: "/dashboard?tab=nutrition" },
+  { id: "nutrition", label: "Nutrition", icon: Apple, href: "/nutrition" },
     { id: "workout", label: "Workout", icon: Activity, href: "/dashboard?tab=workout" },
     { id: "reports", label: "Reports", icon: FileText, href: "/dashboard?tab=reports" },
   ]
@@ -26,7 +26,7 @@ export default function Sidebar() {
     { id: "dashboard", label: "Dashboard", icon: AppWindow, href: "/dashboard?tab=dashboard" },
     { id: "clients", label: "Clients", icon: UserPlus, href: "/dashboard?tab=clients" },
     { id: "chat", label: "Chat", icon: User, href: "/chat" },
-    { id: "nutrition", label: "Nutrition", icon: Apple, href: "/dashboard?tab=nutrition" },
+  { id: "nutrition", label: "Nutrition", icon: Apple, href: "/nutrition" },
     { id: "workout", label: "Workout", icon: Activity, href: "/dashboard?tab=workout" },
     { id: "reports", label: "Reports", icon: FileText, href: "/dashboard?tab=reports" },
   ]
@@ -35,7 +35,8 @@ export default function Sidebar() {
 
   const activeId = (() => {
     if (pathname === "/formbuilder") return "form-builder"
-    if (pathname.startsWith("/chat")) return "chat"
+  if (pathname.startsWith("/chat")) return "chat"
+  if (pathname.startsWith("/nutrition")) return "nutrition"
     if (pathname.startsWith("/dashboard")) {
       if (tabParam) return tabParam
       if (pathname.startsWith("/dashboard/clients")) return "clients"
