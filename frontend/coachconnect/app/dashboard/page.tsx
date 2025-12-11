@@ -68,9 +68,12 @@ export default function Dashboard() {
       return (
         <div className="flex-1 p-8">
           <p className="text-muted-foreground mt-2">Trainer scherm: {active}</p>
-          <div className="mt-6">
-            <TrainerSubmissions />
-          </div>
+          {/* Only show trainer submissions on the dashboard tab */}
+          {active === "dashboard" && (
+            <div className="mt-6 max-w-lg">
+              <TrainerSubmissions compact />
+            </div>
+          )}
         </div>
       )
     }
